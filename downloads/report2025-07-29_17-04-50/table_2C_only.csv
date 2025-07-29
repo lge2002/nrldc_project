@@ -1,0 +1,12 @@
+State,"Maximum Demand, corresponding shortage and requirement details for the day Maximum Demand Met of theday","Maximum requirement, corresponding shortage and demand details for the day Time",ACE Shortage during at maximum demand,Requirement at the max demand met of the day,Maximum Requirement of the day,Time,Shortage during at maximum Requirement,Demand Met atmaximum requiremnet,Min Demand Met,ACE_MAX,ACE_MIN
+PUNJAB,"16,677",12:00,0,"16,677","16,677",12:00,0,"16,677","12,508",600.95,-662.59
+HARYANA,"13,998",14:00,0,"13,998","13,998",14:00,0,"13,998","10,963",479.6,-418.07
+RAJASTHAN,"13,363",22:00,0,"13,363","13,363",22:00,0,"13,363","10,943","1,415.07",-317.16
+DELHI,"7,375",15:00,0,"7,375","7,375",15:00,0,"7,375","5,151",338.27,-278.07
+UP,"29,172",21:00,0,"29,172","29,172",21:00,0,"29,172","18,686",893.7,"-1,446.79"
+UTTARAKHA..,"2,337",20:00,0,"2,337","2,337",20:00,0,"2,337","2,012",211.05,-297.83
+HP,"1,799",9:00,0,"1,799","1,799",9:00,0,"1,799","1,263",183.91,-203.95
+J&K(UT)&Lad..,"2,659",20:00,0,"2,659","2,659",20:00,0,"2,659","1,630",466.97,-199.94
+CHANDIGARH,342,11:00,0,342,342,11:00,0,342,235,39.63,-25.12
+"RAILWAYS_NRISTS",204,22:00,0,204,204,22:00,0,204,107,0,0
+NR,"81,570",22:00,0,"81,570","81,570",22:00,0,"81,570","68,347",0,0

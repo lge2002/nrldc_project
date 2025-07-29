@@ -1,0 +1,12 @@
+State,State's Control Area Generation (Net MU) Thermal,State's Control Area Generation (Net MU) Hydro,State's Control Area Generation (Net MU) Gas/Naptha/ Diesel,State's Control Area Generation (Net MU) Solar,State's Control Area Generation (Net MU) Wind,State's Control Area Generation (Net MU) OthersBiomass/Co-gen etc.),State's Control Area Generation (Net MU) Total,Drawal Sch (Net MU),Act Drawal (Net MU),UI (Net MU),Requirement (Net MU),Shortage (Net MU),Consumption (Net MU)
+PUNJAB,102.95,21.2,0,4.22,0,1.85,130.21,220.25,219.52,-0.73,349.73,0,349.73
+HARYANA,65.08,1.04,0.93,0.97,0,0.8,68.83,222.22,219.96,-2.26,288.79,0,288.79
+RAJASTHAN,114.49,3.77,1.75,22.73,28.98,5.73,177.44,126.29,117.14,-9.15,294.58,0,294.58
+DELHI,0,0,12.08,0,0,1.84,13.92,140.37,138.75,-1.62,152.67,0,152.67
+UTTAR PRADESH,285.2,24.5,0,9.5,0,0.8,320,263.56,263.54,-0.02,583.54,0,583.54
+UTTARAKHAND,0,24.73,0,0.34,0,0,25.06,26.76,27.62,0.86,52.68,0,52.68
+"HIMACHALPRADESH",0,40.51,0,0.18,0,0,40.69,-2.43,-3.3,-0.87,37.39,0,37.39
+"J&K(UT) &Ladakh(UT)",0,24.87,0,0,0,0,24.87,29.78,29.03,-0.75,53.9,0,53.9
+CHANDIGARH,0,0,0,0,0,0,0,7.34,7.29,-0.05,7.29,0,7.29
+RAILWAYS_NR ISTS,0,0,0,0,0,0,0,3.76,3.89,0.13,3.89,0,3.89
+Region,567.72,140.62,14.76,37.94,28.98,11.02,801.02,"1,037.9","1,023.44",-14.46,"1,824.46",0,"1,824.46"
