@@ -3,12 +3,13 @@ import datetime
 import os
 import tabula
 import pandas as pd
-import json # Import the json module
+import json
 
 from django.core.management.base import BaseCommand, CommandError
+from nrldc.models import NRDCReport, Table2AData, Table2CData
 
 class Command(BaseCommand):
-    help = 'Download today\'s NRDC report and extract tables 2(A) and 2(C) to a single JSON file'
+    help = 'Download today\'s NRDC report and extract tables 2(A) and 2(C) to a single JSON file and save to DB'
 
     def extract_subtable_by_markers(self, df, start_marker, end_marker=None, header_row_count=0, debug_table_name="Unknown Table"):
         """
@@ -54,70 +55,68 @@ class Command(BaseCommand):
         else:
             raw_sub_df = df.iloc[start_idx:].copy().reset_index(drop=True)
 
-        # Adjust start_idx for actual data based on header_row_count
-        # The first row (index 0) of raw_sub_df is the table title.
-        # Actual headers start from index 1. Data starts after title row + header_row_count.
         data_start_row_in_raw_sub_df = 1 + header_row_count
 
-        if header_row_count > 0 and len(raw_sub_df) >= data_start_row_in_raw_sub_df: # Ensure enough rows for headers
-            # Extract header rows
+        if header_row_count > 0 and len(raw_sub_df) >= data_start_row_in_raw_sub_df:
             headers_df = raw_sub_df.iloc[1 : data_start_row_in_raw_sub_df]
 
             new_columns = []
             if header_row_count == 1:
                 new_columns = headers_df.iloc[0].astype(str).str.strip().tolist()
             elif header_row_count == 2:
-                raw_top_header = headers_df.iloc[0].astype(str).str.strip()
-                raw_bottom_header = headers_df.iloc[1].astype(str).str.strip()
+                raw_top_header = headers_df.iloc[0].astype(str).str.replace('\n', ' ', regex=False).str.strip().fillna('')
+                raw_bottom_header = headers_df.iloc[1].astype(str).str.replace('\n', ' ', regex=False).str.strip().fillna('')
 
-                # Manually combine headers based on observed structure for Table 2(A)
                 if debug_table_name == "Table 2(A)":
-                    new_columns.append(raw_top_header.iloc[0])
-
-                    generation_prefix = raw_top_header.iloc[1]
-                    for col_idx in range(1, 8):
-                        sub_category = raw_bottom_header.iloc[col_idx]
-                        if pd.isna(sub_category) or sub_category == 'nan':
-                            new_columns.append(generation_prefix)
-                        else:
-                            new_columns.append(f"{generation_prefix} {sub_category}".strip())
-
-                    top_level_categories_for_units = raw_top_header.iloc[2:8].tolist()
-                    units = raw_bottom_header.iloc[8:14].tolist()
-
-                    for i in range(len(top_level_categories_for_units)):
-                        t_cat = top_level_categories_for_units[i]
-                        unit = units[i]
-                        if pd.isna(unit) or unit == 'nan':
-                            new_columns.append(t_cat)
-                        else:
-                            new_columns.append(f"{t_cat} {unit}".strip())
-                
+                    new_columns = [
+                        'State',
+                        'Thermal',
+                        'Hydro',
+                        'Gas/Naptha/Diesel',
+                        'Solar',
+                        'Wind',
+                        'Others(Biomass/Co-gen etc.)',
+                        'Total',
+                        'Drawal Sch (Net MU)',
+                        'Act Drawal (Net MU)',
+                        'UI (Net MU)',
+                        'Requirement (Net MU)',
+                        'Shortage (Net MU)',
+                        'Consumption (Net MU)'
+                    ]
                 elif debug_table_name == "Table 2(C)":
-                    temp_header_df = pd.DataFrame([raw_top_header, raw_bottom_header])
-                    temp_header_df.iloc[0] = temp_header_df.iloc[0].ffill()
-
-                    for col_idx in range(len(temp_header_df.columns)):
-                        t_val = temp_header_df.iloc[0, col_idx]
-                        b_val = temp_header_df.iloc[1, col_idx]
-
-                        if pd.isna(b_val) or b_val == 'nan':
-                            new_columns.append(t_val)
-                        elif pd.isna(t_val) or t_val == 'nan':
-                            new_columns.append(b_val)
-                        elif b_val.startswith(t_val):
-                            new_columns.append(b_val)
-                        else:
-                            new_columns.append(f"{t_val} {b_val}".strip())
+                    # --- MODIFIED new_columns for Table 2(C) to include 15th column ---
+                    new_columns = [
+                        'State',
+                        'Maximum Demand Met of the day',
+                        'Time', # First 'Time' column
+                        'Shortage during maximum demand',
+                        'Requirement at maximum demand',
+                        'Maximum requirement of the day',
+                        'Time.1', # Second 'Time' column
+                        'Shortage during maximum requirement',
+                        'Demand Met at maximum Requirement',
+                        'Min Demand Met',
+                        'Time.2', # Third 'Time' column
+                        'ACE_MAX',
+                        'ACE_MIN', # This is where Tabula places the time string for ACE
+                        'Time.3',  # This is where Tabula places the numeric ACE_MIN value
+                        'Unnamed_15th_Col' # Added this placeholder for the 15th column
+                    ]
+                    # --- END MODIFIED new_columns ---
                 else:
-                    self.stdout.write(self.style.WARNING(f"⚠️ Custom header combination logic not defined for {debug_table_name}. Falling back to default."))
-                    top_header_ffill = raw_top_header.ffill().astype(str).str.strip()
-                    for idx in range(len(top_header_ffill)):
-                        t_col = top_header_ffill.iloc[idx]
-                        b_col = raw_bottom_header.iloc[idx]
-                        if pd.isna(b_col) or b_col == 'nan':
+                    self.stdout.write(self.style.WARNING(f"⚠️ Custom header combination logic not defined for {debug_table_name}. Falling back to generic combination."))
+                    for idx in range(raw_top_header.shape[0]):
+                        t_col = raw_top_header.iloc[idx].strip()
+                        b_col = raw_bottom_header.iloc[idx].strip()
+
+                        if not t_col and not b_col:
+                            new_columns.append(f"Unnamed_{idx}")
+                        elif not b_col:
                             new_columns.append(t_col)
-                        elif t_col and not b_col.startswith(t_col):
+                        elif not t_col:
+                            new_columns.append(b_col)
+                        elif not b_col.startswith(t_col):
                             new_columns.append(f"{t_col} {b_col}".strip())
                         else:
                             new_columns.append(b_col)
@@ -139,25 +138,43 @@ class Command(BaseCommand):
                 sub_df_data.columns = sub_df_data.columns.astype(str).str.strip()
                 sub_df_data.columns = sub_df_data.columns.str.replace(r'\s*\r\s*', ' ', regex=True).str.strip()
 
-                sub_df_data = sub_df_data.dropna(axis=0, how='all')
-                return sub_df_data.dropna(axis=1, how='all')
+                # IMPORTANT: If you want to keep truly empty columns, you might need to adjust this.
+                # For now, it will keep columns that have at least one non-NaN value.
+                sub_df_data = sub_df_data.dropna(axis=0, how='all') # Drop rows where all cells are NaN
+                return sub_df_data.dropna(axis=1, how='all') # Drop columns where all cells are NaN
             else:
                 return raw_sub_df.iloc[data_start_row_in_raw_sub_df:].dropna(axis=1, how='all')
         else:
             return raw_sub_df.iloc[1:].dropna(axis=1, how='all')
 
-
-    def extract_tables_from_pdf(self, pdf_path, output_dir):
+    def _safe_float(self, value):
         """
-        Extracts specific tables (2A and 2C) from a PDF and saves them as a single JSON file.
-
-        Args:
-            pdf_path (str): The path to the PDF file.
-            output_dir (str): The directory to save the extracted JSON file.
-
-        Raises:
-            CommandError: If PDF extraction fails or no tables are found.
+        Attempts to convert a value to float, handling commas and ensuring it's not a time string.
+        Returns None if conversion fails or if the value appears to be a time string.
         """
+        if isinstance(value, str):
+            value = value.strip()
+            # If it contains a colon, it's a time, so it should NOT be converted to float.
+            if ':' in value:
+                return None
+            # Remove commas for numeric conversion
+            value = value.replace(',', '')
+            # Handle empty strings or non-numeric strings after comma removal
+            if not value or value.lower() in ['n/a', '-', 'null', 'nan']:
+                return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+
+    def _safe_string(self, value):
+        """Ensures the value is a string or returns None."""
+        if pd.isna(value) or value is None:
+            return None
+        return str(value).strip() if value is not None else None
+
+
+    def extract_tables_from_pdf(self, pdf_path, output_dir, report_instance):
         self.stdout.write("🔍 Extracting tables from PDF...")
 
         try:
@@ -175,46 +192,146 @@ class Command(BaseCommand):
             raise CommandError("❌ No tables found in the PDF.")
 
         self.stdout.write(self.style.SUCCESS(f"✅ Found {len(tables)} tables."))
-        
-        # Combine all extracted tables into a single DataFrame for comprehensive searching
+
         all_content_df = pd.DataFrame()
         for df in tables:
             all_content_df = pd.concat([all_content_df, df], ignore_index=True)
 
-        # Clean the combined DataFrame once
-        all_content_df_cleaned = all_content_df.dropna(axis=0, how='all').dropna(axis=1, how='all')
+        # Removed .dropna(axis=1, how='all') from here so it doesn't prematurely drop columns
+        all_content_df_cleaned = all_content_df.dropna(axis=0, how='all')
 
         combined_json_data = {}
 
         # --- Extract Table 2(A) ---
         sub_2A = self.extract_subtable_by_markers(
-            all_content_df_cleaned, # Search in the combined DataFrame
+            all_content_df_cleaned,
             start_marker=r".*2\s*\(A\)\s*State's\s*Load\s*Deails.*",
             end_marker=r"2\s*\(B\)\s*State\s*Demand\s*Met\s*\(Peak\s*and\s*off-Peak\s*Hrs\)",
-            header_row_count=2, # Expecting 2 header rows after the title row
+            header_row_count=2,
             debug_table_name="Table 2(A)"
         )
         if sub_2A is not None:
-            combined_json_data['table_2A'] = sub_2A.to_dict(orient='records')
+            column_mapping_2A = {
+                'State': 'state',
+                'Thermal': 'thermal',
+                'Hydro': 'hydro',
+                'Gas/Naptha/Diesel': 'gas_naptha_diesel',
+                'Solar': 'solar',
+                'Wind': 'wind',
+                'Others(Biomass/Co-gen etc.)': 'other_biomass_co_gen_etc',
+                'Total': 'total_generation',
+                'Drawal Sch (Net MU)': 'drawal_sch_net_mu',
+                'Act Drawal (Net MU)': 'act_drawal_net_mu',
+                'UI (Net MU)': 'ui_net_mu',
+                'Requirement (Net MU)': 'requirement_net_mu',
+                'Shortage (Net MU)': 'shortage_net_mu',
+                'Consumption (Net MU)': 'consumption_net_mu',
+            }
+            sub_2A_renamed = sub_2A.rename(columns=column_mapping_2A)
+            sub_2A_filtered = sub_2A_renamed[[col for col in column_mapping_2A.values() if col in sub_2A_renamed.columns]]
+
+            self.stdout.write(f"\n--- Debugging Table 2A Filtered Data ---")
+            self.stdout.write(f"Columns: {sub_2A_filtered.columns.tolist()}")
+            self.stdout.write(f"Sample data:\n{sub_2A_filtered.head().to_string()}") # Use to_string for better display
+            self.stdout.write(f"----------------------------------------\n")
+
+            combined_json_data['table_2A'] = sub_2A_filtered.to_dict(orient='records')
             self.stdout.write(self.style.SUCCESS(f"✅ Table 2(A) extracted for combined JSON."))
+
+            for index, row_data in sub_2A_filtered.iterrows():
+                try:
+                    Table2AData.objects.create(
+                        report=report_instance,
+                        state=self._safe_string(row_data.get('state')),
+                        thermal=self._safe_float(row_data.get('thermal')),
+                        hydro=self._safe_float(row_data.get('hydro')),
+                        gas_naptha_diesel=self._safe_float(row_data.get('gas_naptha_diesel')),
+                        solar=self._safe_float(row_data.get('solar')),
+                        wind=self._safe_float(row_data.get('wind')),
+                        other_biomass_co_gen_etc=self._safe_float(row_data.get('other_biomass_co_gen_etc')),
+                        total_generation=self._safe_float(row_data.get('total_generation')),
+                        drawal_sch_net_mu=self._safe_float(row_data.get('drawal_sch_net_mu')),
+                        act_drawal_net_mu=self._safe_float(row_data.get('act_drawal_net_mu')),
+                        ui_net_mu=self._safe_float(row_data.get('ui_net_mu')),
+                        requirement_net_mu=self._safe_float(row_data.get('requirement_net_mu')),
+                        shortage_net_mu=self._safe_float(row_data.get('shortage_net_mu')),
+                        consumption_net_mu=self._safe_float(row_data.get('consumption_net_mu')),
+                    )
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"❌ Error saving Table 2A row to DB (State: {row_data.get('state')}): {e}"))
+            self.stdout.write(self.style.SUCCESS(f"✅ Table 2(A) data saved to database."))
         else:
             self.stdout.write(self.style.WARNING("⚠️ Table 2(A) not found or extraction failed."))
 
         # --- Extract Table 2(C) ---
         sub_2C = self.extract_subtable_by_markers(
-            all_content_df_cleaned, # Search in the combined DataFrame
+            all_content_df_cleaned,
             start_marker=r"2\s*\(C\)\s*State's\s*Demand\s*Met\s*in\s*MWs.*",
             end_marker=r"3\s*\(A\)\s*StateEntities\s*Generation:",
-            header_row_count=2, # Assuming 2 header rows for Table 2(C) as well
+            header_row_count=2,
             debug_table_name="Table 2(C)"
         )
         if sub_2C is not None:
-            combined_json_data['table_2C'] = sub_2C.to_dict(orient='records')
+            # --- MODIFIED column_mapping_2C to include the 15th column ---
+            column_mapping_2C = {
+                'State': 'state',
+                'Maximum Demand Met of the day': 'max_demand_met_of_the_day',
+                'Time': 'time_max_demand_met',
+                'Shortage during maximum demand': 'shortage_during_max_demand',
+                'Requirement at maximum demand': 'requirement_at_max_demand',
+                'Maximum requirement of the day': 'max_requirement_of_the_day',
+                'Time.1': 'time_max_requirement',
+                'Shortage during maximum requirement': 'shortage_during_max_requirement',
+                'Demand Met at maximum Requirement': 'demand_met_at_max_requirement',
+                'Min Demand Met': 'min_demand_met',
+                'Time.2': 'time_min_demand_met',
+                'ACE_MAX': 'ace_max',
+                'ACE_MIN': 'time_ace',
+                'Time.3': 'ace_min',
+                'Unnamed_15th_Col': 'unused_col' # Map the new placeholder name to a Django field or JSON key
+            }
+            # --- END MODIFIED column_mapping_2C ---
+
+            sub_2C_renamed = sub_2C.rename(columns=column_mapping_2C)
+            # Ensure the filtered columns include the new 'unused_col'
+            sub_2C_filtered = sub_2C_renamed[[col for col in column_mapping_2C.values() if col in sub_2C_renamed.columns]]
+
+            self.stdout.write(f"\n--- Debugging Table 2C Filtered Data ---")
+            self.stdout.write(f"Columns: {sub_2C_filtered.columns.tolist()}")
+            self.stdout.write(f"Sample data:\n{sub_2C_filtered.head().to_string()}")
+            self.stdout.write(f"----------------------------------------\n")
+
+            combined_json_data['table_2C'] = sub_2C_filtered.to_dict(orient='records')
             self.stdout.write(self.style.SUCCESS(f"✅ Table 2(C) extracted for combined JSON."))
+
+            for index, row_data in sub_2C_filtered.iterrows():
+                try:
+                    Table2CData.objects.create(
+                        report=report_instance,
+                        state=self._safe_string(row_data.get('state')),
+                        max_demand_met_of_the_day=self._safe_float(row_data.get('max_demand_met_of_the_day')),
+                        time_max_demand_met=self._safe_string(row_data.get('time_max_demand_met')),
+                        shortage_during_max_demand=self._safe_float(row_data.get('shortage_during_max_demand')),
+                        requirement_at_max_demand=self._safe_float(row_data.get('requirement_at_max_demand')),
+                        max_requirement_of_the_day=self._safe_float(row_data.get('max_requirement_of_the_day')),
+                        time_max_requirement=self._safe_string(row_data.get('time_max_requirement')),
+                        shortage_during_max_requirement=self._safe_float(row_data.get('shortage_during_max_requirement')),
+                        demand_met_at_max_requirement=self._safe_float(row_data.get('demand_met_at_max_requirement')),
+                        min_demand_met=self._safe_float(row_data.get('min_demand_met')),
+                        time_min_demand_met=self._safe_string(row_data.get('time_min_demand_met')),
+                        ace_max=self._safe_float(row_data.get('ace_max')),
+                        ace_min=self._safe_float(row_data.get('ace_min')),
+                        time_ace=self._safe_string(row_data.get('time_ace')),
+                        # --- Add this line to save the 15th column to your DB model ---
+                        unused_col=self._safe_string(row_data.get('unused_col')), # Assuming it's a string, adjust type if needed
+                        # --- END added line ---
+                    )
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"❌ Error saving Table 2C row to DB (State: {row_data.get('state')}): {e}"))
+            self.stdout.write(self.style.SUCCESS(f"✅ Table 2(C) data saved to database."))
         else:
             self.stdout.write(self.style.WARNING("⚠️ Table 2(C) not found or extraction failed."))
 
-        # --- Save Combined JSON ---
         if combined_json_data:
             combined_json_path = os.path.join(output_dir, 'nrdc_report_tables.json')
             with open(combined_json_path, 'w', encoding='utf-8') as f:
@@ -223,15 +340,19 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING("⚠️ No tables were successfully extracted to create a combined JSON file."))
 
-
     def handle(self, *args, **options):
         """
         Main entry point for the Django management command.
         Downloads the NRDC report and initiates table extraction.
         """
-        today = datetime.date.today().strftime("%Y-%m-%d")
+        today = datetime.date.today()
+        today_str = today.strftime("%Y-%m-%d")
 
-        url = f"https://nrldc.in/get-documents-list/111?start_date={today}&end_date={today}"
+        if NRDCReport.objects.filter(report_date=today).exists():
+            self.stdout.write(self.style.WARNING(f"⚠️ Report for {today_str} already exists in the database. Skipping download and extraction."))
+            return
+
+        url = f"https://nrldc.in/get-documents-list/111?start_date={today_str}&end_date={today_str}"
         headers = {
             "User-Agent": "Mozilla/5.0",
             "Accept": "application/json",
@@ -239,7 +360,7 @@ class Command(BaseCommand):
             "Referer": "https://nrldc.in/reports/daily-psp",
         }
 
-        self.stdout.write(f"🌐 Fetching NRDC report metadata for {today}...")
+        self.stdout.write(f"🌐 Fetching NRDC report metadata for {today_str}...")
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
@@ -252,7 +373,8 @@ class Command(BaseCommand):
             raise CommandError(f"❌ Failed to parse JSON response: {e}")
 
         if data.get("recordsFiltered", 0) == 0:
-            raise CommandError("❌ No report available for today.")
+            self.stdout.write(self.style.WARNING(f"No report available for today ({today_str}). This might be due to weekends, holidays, or late publishing."))
+            return
 
         file_info = data["data"][0]
         file_name = file_info["file_name"]
@@ -277,4 +399,18 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"❌ Failed to download PDF: {e}")
 
-        self.extract_tables_from_pdf(pdf_path, output_dir)
+        try:
+            report_instance = NRDCReport.objects.create(
+                report_date=today,
+                # Ensure these fields match your NRDCReport model.
+                # If these fields are not in your model, remove or comment them out.
+                # report_title=title,
+                # file_name=file_name,
+                # download_url=download_url,
+                # pdf_path=pdf_path
+            )
+            self.stdout.write(self.style.SUCCESS(f"✅ Report metadata saved to database."))
+        except Exception as e:
+            raise CommandError(f"❌ Failed to save report metadata to database: {e}")
+
+        self.extract_tables_from_pdf(pdf_path, output_dir, report_instance)

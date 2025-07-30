@@ -1,0 +1,149 @@
+{
+    "table_2A": [
+        {
+            "state": "PUNJAB",
+            "thermal": "96.38",
+            "hydro": "19.17",
+            "solar": "4.46",
+            "wind": "0",
+            "total_generation": "121.86"
+        },
+        {
+            "state": "HARYANA",
+            "thermal": "54.54",
+            "hydro": "1.01",
+            "solar": "0.95",
+            "wind": "0",
+            "total_generation": "57.35"
+        },
+        {
+            "state": "RAJASTHAN",
+            "thermal": "109.24",
+            "hydro": "5.1",
+            "solar": "34.52",
+            "wind": "50.75",
+            "total_generation": "206.65"
+        },
+        {
+            "state": "DELHI",
+            "thermal": "0",
+            "hydro": "0",
+            "solar": "0",
+            "wind": "0",
+            "total_generation": "12.27"
+        },
+        {
+            "state": "UTTAR PRADESH",
+            "thermal": "249.1",
+            "hydro": "22.9",
+            "solar": "10.2",
+            "wind": "0",
+            "total_generation": "283"
+        },
+        {
+            "state": "UTTARAKHAND",
+            "thermal": "0",
+            "hydro": "21.97",
+            "solar": "0.26",
+            "wind": "0",
+            "total_generation": "22.23"
+        },
+        {
+            "state": "HIMACHAL\rPRADESH",
+            "thermal": "0",
+            "hydro": "40.71",
+            "solar": "0.18",
+            "wind": "0",
+            "total_generation": "40.89"
+        },
+        {
+            "state": "J&K(UT) &\rLadakh(UT)",
+            "thermal": "0",
+            "hydro": "24.88",
+            "solar": "0",
+            "wind": "0",
+            "total_generation": "24.88"
+        },
+        {
+            "state": "CHANDIGARH",
+            "thermal": "0",
+            "hydro": "0",
+            "solar": "0",
+            "wind": "0",
+            "total_generation": "0"
+        },
+        {
+            "state": "RAILWAYS_NR ISTS",
+            "thermal": "0",
+            "hydro": "0",
+            "solar": "0",
+            "wind": "0",
+            "total_generation": "0"
+        },
+        {
+            "state": "Region",
+            "thermal": "509.26",
+            "hydro": "135.74",
+            "solar": "50.57",
+            "wind": "50.75",
+            "total_generation": "769.13"
+        }
+    ],
+    "table_2C": [
+        {
+            "state": "PUNJAB",
+            "time_max_demand_met": "15:00",
+            "min_demand_met": "12,724"
+        },
+        {
+            "state": "HARYANA",
+            "time_max_demand_met": "14:00",
+            "min_demand_met": "10,343"
+        },
+        {
+            "state": "RAJASTHAN",
+            "time_max_demand_met": "22:00",
+            "min_demand_met": "11,145"
+        },
+        {
+            "state": "DELHI",
+            "time_max_demand_met": "0:00",
+            "min_demand_met": "5,096"
+        },
+        {
+            "state": "UP",
+            "time_max_demand_met": "21:00",
+            "min_demand_met": "17,187"
+        },
+        {
+            "state": "UTTARAKHA..",
+            "time_max_demand_met": "19:00",
+            "min_demand_met": "1,886"
+        },
+        {
+            "state": "HP",
+            "time_max_demand_met": "10:00",
+            "min_demand_met": "1,312"
+        },
+        {
+            "state": "J&K(UT)&Lad..",
+            "time_max_demand_met": "16:00",
+            "min_demand_met": "1,536"
+        },
+        {
+            "state": "CHANDIGARH",
+            "time_max_demand_met": "0:00",
+            "min_demand_met": "281"
+        },
+        {
+            "state": "RAILWAYS_NR\rISTS",
+            "time_max_demand_met": "23:00",
+            "min_demand_met": "109"
+        },
+        {
+            "state": "NR",
+            "time_max_demand_met": "21:00",
+            "min_demand_met": "65,111"
+        }
+    ]
+}
